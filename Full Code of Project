@@ -1,0 +1,143 @@
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h> 
+#define FLEX_SENSOR_1 A1  
+#define FLEX_SENSOR_2 A2  
+#define FLEX_SENSOR_3 A4  // Medicine 
+#define FLEX_SENSOR_4 A5  // Toilet 
+#define ECG_PIN A0        
+#define LM35_PIN A8      // LM35 temperature sensor 
+#define PHONE_NUMBER "9339905820" 
+#define MESSAGE_INTERVAL 30000  // 30 seconds 
+LiquidCrystal_I2C lcd(0x27, 16, 2);  // I2C LCD 16x2 
+unsigned long lastMessageTime = 0; 
+unsigned long lastLCDUpdateTime = 0; 
+const unsigned long lcdUpdateInterval = 1000;  // 1 second 
+// Cooldown timers for each flex sensor 
+unsigned long lastSentFlex1 = 0; 
+unsigned long lastSentFlex2 = 0; 
+unsigned long lastSentFlex3 = 0; 
+unsigned long lastSentFlex4 = 0; 
+const unsigned long cooldown = 10000; // 10 sec 
+void setup() { 
+Serial.begin(9600); 
+Serial1.begin(9600);  // GSM on Serial1 (Arduino Mega) 
+lcd.init(); 
+lcd.backlight(); 
+lcd.setCursor(0, 0); 
+lcd.print("Initializing..."); 
+delay(1000); 
+Serial1.println("AT"); 
+waitForResponse(); 
+Serial1.println("AT+CMGF=1");  // SMS text mode 
+waitForResponse(); 
+Serial1.println("AT+CNMI=1,2,0,0,0");  // SMS notifications 
+waitForResponse(); 
+lcd.clear(); 
+lcd.print("System Ready!"); 
+Serial.println("GSM module initialized."); 
+  delay(2000); 
+} 
+ 
+void loop() { 
+  unsigned long currentTime = millis(); 
+ 
+  // Read sensor values 
+  int flex1 = analogRead(FLEX_SENSOR_1); 
+  int flex2 = analogRead(FLEX_SENSOR_2); 
+  int flex3 = analogRead(FLEX_SENSOR_3); 
+  int flex4 = analogRead(FLEX_SENSOR_4); 
+  int ecg = analogRead(ECG_PIN); 
+  float temp = readTemperature(); 
+ 
+  // Update LCD every 1 second 
+  if (currentTime - lastLCDUpdateTime >= lcdUpdateInterval) { 
+    lcd.clear(); 
+    lcd.setCursor(0, 0); 
+    lcd.print("F1:"); 
+    lcd.print(flex1); 
+    lcd.print(" F2:"); 
+    lcd.print(flex2); 
+    lcd.setCursor(0, 1); 
+    lcd.print("T:"); 
+    lcd.print(temp); 
+    lcd.print("C E:"); 
+    lcd.print(ecg); 
+    lastLCDUpdateTime = currentTime; 
+  } 
+ 
+  // Plot ECG for Serial Plotter 
+  Serial.println(ecg); 
+ 
+  // Flex sensor alerts 
+  if (flex1 > 1 && currentTime - lastSentFlex1 > cooldown) { 
+    sendFlexAlert("I need water"); 
+    lastSentFlex1 = currentTime; 
+  } 
+  if (flex2 > 1 && currentTime - lastSentFlex2 > cooldown) { 
+    sendFlexAlert("I need food"); 
+    lastSentFlex2 = currentTime; 
+  } 
+  if (flex3 < 650 && currentTime - lastSentFlex3 > cooldown) { 
+    sendFlexAlert("I need medicine"); 
+    lastSentFlex3 = currentTime; 
+  } 
+  if (flex4 < 0 && currentTime - lastSentFlex4 > cooldown) { 
+    sendFlexAlert("I want to go toilet"); 
+    lastSentFlex4 = currentTime; 
+  } 
+ 
+  // Send sensor summary every 30 seconds 
+  if (currentTime - lastMessageTime >= MESSAGE_INTERVAL) { 
+    String message = String("Sensor Data:\n") + 
+                     "Flex1: " + flex1 + "\n" + 
+                     "Flex2: " + flex2 + "\n" + 
+                     "Flex3: " + flex3 + "\n" + 
+                     "Flex4: " + flex4 + "\n" + 
+                     "Temp: " + temp + "°C\n" + 
+                     "ECG: " + ecg; 
+    sendSMS(PHONE_NUMBER, message); 
+    lastMessageTime = currentTime; 
+  } 
+ 
+  delay(100);  // small delay 
+} 
+ 
+// Send alert for a flex sensor 
+void sendFlexAlert(String message) { 
+  lcd.clear(); 
+  lcd.setCursor(0, 0); 
+  lcd.print(message); 
+  sendSMS(PHONE_NUMBER, message); 
+} 
+ 
+// Temperature conversion from LM35 
+float readTemperature() { 
+  int sensorValue = analogRead(LM35_PIN); 
+  float voltage = sensorValue * (5.0 / 1023.0); 
+  return voltage * 100.0; 
+} 
+ 
+// Send SMS 
+void sendSMS(String phoneNumber, String message) { 
+  Serial.println("Sending SMS to: " + phoneNumber); 
+  Serial1.println("AT+CMGS=\"" + phoneNumber + "\""); 
+  delay(1000); 
+  Serial1.println(message); 
+  delay(100); 
+  Serial1.write(26);  // ASCII for Ctrl+Z 
+  delay(1000); 
+  Serial.println("SMS Sent!"); 
+} 
+ 
+// GSM response wait 
+void waitForResponse() { 
+  long start = millis(); 
+  while (millis() - start < 5000) { 
+    if (Serial1.available()) { 
+      String response = Serial1.readString(); 
+      Serial.println("Response: " + response); 
+      return; 
+    } 
+  } 
+  Serial.println("No response from GSM module."); 
+}
