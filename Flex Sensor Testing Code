@@ -1,0 +1,29 @@
+// Define analog pins for 4 flex sensors 
+#define FLEX_SENSOR_1 A1 
+#define FLEX_SENSOR_2 A2 
+#define FLEX_SENSOR_3 A4 
+#define FLEX_SENSOR_4 A5 
+ 
+void setup() { 
+  Serial.begin(9600); // Start serial communication 
+} 
+ 
+void loop() { 
+  // Read values from the flex sensors 
+  int flex1 = analogRead(FLEX_SENSOR_1); 
+  int flex2 = analogRead(FLEX_SENSOR_2); 
+  int flex3 = analogRead(FLEX_SENSOR_3); 
+  int flex4 = analogRead(FLEX_SENSOR_4); 
+ 
+  // Print values to the Serial Monitor 
+  Serial.print("Flex 1: "); 
+  Serial.print(flex1); 
+  Serial.print("\tFlex 2: "); 
+  Serial.print(flex2); 
+  Serial.print("\tFlex 3: "); 
+  Serial.print(flex3); 
+  Serial.print("\tFlex 4: "); 
+  Serial.println(flex4); 
+ 
+  delay(500); // Delay for stability 
+} 
