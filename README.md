@@ -34,5 +34,4 @@ Remote Monitoring : Caregivers receive alerts even when they are not physically 
     Easy to use and maintain &
     Suitable for home-based and rural healthcare environments.
 
-
-    https://github.com/user-attachments/assets/282584dd-93cb-4db2-b989-84304ea45eba
+https://github.com/user-attachments/assets/ea5bab01-3a10-4215-b159-5e9d5c25466f
